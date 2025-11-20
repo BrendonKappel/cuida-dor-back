@@ -5,6 +5,8 @@ from models.user import db
 from config.jwt_config import jwt
 from routes.user_routes import user_bp
 from routes.auth_routes import auth_bp
+from routes.pain_routes import pain_bp
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -15,6 +17,8 @@ jwt.init_app(app)
 
 app.register_blueprint(user_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(pain_bp)
+
 
 @app.route("/")
 def home():

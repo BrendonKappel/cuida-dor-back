@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models.user import db, User
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
 
 user_bp = Blueprint("user_bp", __name__)
 
@@ -24,7 +24,9 @@ def register_user():
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({"message": "Usuário criado com sucesso"}), 201
+    token = create_access_token(identity=user)
+
+    return jsonify({"message": "Usuário criado com sucesso", "token": token}), 201
 
 
 @user_bp.route("/user", methods=["GET"])
@@ -33,6 +35,14 @@ def list_users():
     users = User.query.all()
     return jsonify([u.to_dict() for u in users]), 200
 
+@user_bp.route("/user/profile", methods=["GET"])
+@jwt_required()
+def get_user_profile():
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user)
+    if not user:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+    return jsonify(user.to_dict()), 200
 
 @user_bp.route("/user/<int:id>", methods=["GET"])
 @jwt_required()
