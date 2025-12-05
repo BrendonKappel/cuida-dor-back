@@ -9,9 +9,16 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    sex = db.Column(db.Enum("masculino", "feminino", "nao_identificar", name="sex_enum"), nullable=False)
+    sex = db.Column(
+        db.Enum("masculino", "feminino", "nao_identificar", name="sex_enum"),
+        nullable=False
+    )
     password_hash = db.Column(db.String(255), nullable=False)
     comorbidades = db.Column(db.String(255), nullable=True)
+    role = db.Column(
+        db.Enum("ADMIN", "USER", name="role_enum"),
+        nullable=True
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -25,5 +32,6 @@ class User(db.Model):
             "name": self.name,
             "email": self.email,
             "sex": self.sex,
-            "comorbidades": self.comorbidades
+            "comorbidades": self.comorbidades,
+            "role": self.role
         }

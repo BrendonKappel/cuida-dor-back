@@ -45,6 +45,7 @@ def create_pain():
 def get_pain_graph():
     start_date = request.args.get("startDate")
     end_date = request.args.get("endDate")
+    size = request.args.get("size", type=int)
 
     base_query = Pain.query.filter_by(user_id=current_user.id)
 
@@ -60,6 +61,9 @@ def get_pain_graph():
 
     pains = base_query.order_by(Pain.dateTimeEvent.asc()).all()
 
+    if size:
+        pains = pains[:size]
+
     if not pains:
         return jsonify({"error": "Nenhum evento encontrado"}), 404
 
@@ -68,14 +72,12 @@ def get_pain_graph():
     after_data = defaultdict(list)
 
     for p in pains:
-        date_obj = p.dateTimeEvent.date()
+        date_only = p.dateTimeEvent.date()
 
         if p.type == PainType.BEFORE_RELIEF_TECHNIQUES:
-            jittered_value = min(p.painScale + 0.15, 10)     # Caso pontos coincidirem descola 0,15
-            before_data[date_obj].append(jittered_value)
+            before_data[date_only].append(p.painScale)
         else:
-            jittered_value = max(p.painScale - 0.15, 0)
-            after_data[date_obj].append(jittered_value)
+            after_data[date_only].append(p.painScale)
 
     all_dates = sorted(set(before_data.keys()) | set(after_data.keys()))
 
@@ -83,39 +85,45 @@ def get_pain_graph():
     before_vals = []
     after_vals = []
 
-    for date_obj in all_dates:
-        dates_str.append(date_obj.strftime("%d/%m/%Y"))
-
+    for d in all_dates:
+        dates_str.append(d.strftime("%d/%m/%Y"))
         before_vals.append(
-            sum(before_data[date_obj]) / len(before_data[date_obj])
-            if date_obj in before_data else None
+            sum(before_data[d]) / len(before_data[d]) if d in before_data else None
         )
         after_vals.append(
-            sum(after_data[date_obj]) / len(after_data[date_obj])
-            if date_obj in after_data else None
+            sum(after_data[d]) / len(after_data[d]) if d in after_data else None
         )
 
-    all_before_values = [v for v in before_vals if v is not None]
-    all_after_values = [v for v in after_vals if v is not None]
+    all_before = [v for v in before_vals if v is not None]
+    all_after = [v for v in after_vals if v is not None]
 
-    mean_before = sum(all_before_values) / len(all_before_values) if all_before_values else None
-    mean_after = sum(all_after_values) / len(all_after_values) if all_after_values else None
+    mean_before = sum(all_before)/len(all_before) if all_before else None
+    mean_after = sum(all_after)/len(all_after) if all_after else None
 
-    plt.figure(figsize=(10, 4))
-    plt.plot(dates_str, before_vals, "-o", color="red", label="Antes")
-    plt.plot(dates_str, after_vals, "-o", color="green", label="Pós")
+    plt.figure(figsize=(10, 3.3))
 
-    plt.title("Intensidade da Dor por Dia (Média)")
-    plt.xlabel("Data")
-    plt.ylabel("Intensidade da Dor (0-10)")
-    plt.ylim(0, 10.5)
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.grid(True, alpha=0.3)
+    plt.plot(dates_str, before_vals, "-o", color="red", label="Antes", markersize=6)
+    plt.plot(dates_str, after_vals, "-o", color="green", label="Pós", markersize=6)
+
+    plt.yticks([])
+    plt.gca().spines["left"].set_visible(False)
+
+    plt.xticks(rotation=45, fontsize=8)
+
+    ax = plt.gca()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    ax.spines["bottom"].set_alpha(0.3)
+
+    # Legenda
+    plt.legend(fontsize=10, loc="upper left")
+
     plt.tight_layout()
 
     buffer = BytesIO()
-    plt.savefig(buffer, format="png", bbox_inches="tight", dpi=100)
+    plt.savefig(buffer, format="png", dpi=110, bbox_inches="tight")
     buffer.seek(0)
     img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     plt.close()
@@ -125,3 +133,7 @@ def get_pain_graph():
         "meanBefore": mean_before,
         "meanAfter": mean_after
     }), 200
+
+
+
+
